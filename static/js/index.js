@@ -109,18 +109,27 @@ canvas.addEventListener("mousedown", function (e) {
   const mouseX = e.offsetX;
   const mouseY = e.offsetY;
   currentLaser = null;
+  let closestDistance = Infinity;
 
   lasers.forEach((laser) => {
+    const centerX = laser.x + laser.width / 2;
+    const centerY = laser.y + laser.height / 2;
+    const distance = Math.sqrt(
+      Math.pow(mouseX - centerX, 2) + Math.pow(mouseY - centerY, 2)
+    );
+
     if (
       mouseX > laser.x &&
       mouseX < laser.x + laser.width &&
       mouseY > laser.y &&
-      mouseY < laser.y + laser.height
+      mouseY < laser.y + laser.height &&
+      distance < closestDistance
     ) {
       laser.isDragging = true;
       offsetX = mouseX - laser.x;
       offsetY = mouseY - laser.y;
       currentLaser = laser;
+      closestDistance = distance;
     }
   });
 
@@ -157,18 +166,27 @@ canvas.addEventListener("touchstart", function (e) {
   const mouseX = (touch.clientX - rect.left) * scaleX;
   const mouseY = (touch.clientY - rect.top) * scaleY;
   currentLaser = null;
+  let closestDistance = Infinity;
 
   lasers.forEach((laser) => {
+    const centerX = laser.x + laser.width / 2;
+    const centerY = laser.y + laser.height / 2;
+    const distance = Math.sqrt(
+      Math.pow(mouseX - centerX, 2) + Math.pow(mouseY - centerY, 2)
+    );
+
     if (
       mouseX > laser.x &&
       mouseX < laser.x + laser.width &&
       mouseY > laser.y &&
-      mouseY < laser.y + laser.height
+      mouseY < laser.y + laser.height &&
+      distance < closestDistance
     ) {
       laser.isDragging = true;
       offsetX = mouseX - laser.x;
       offsetY = mouseY - laser.y;
       currentLaser = laser;
+      closestDistance = distance;
     }
   });
 
@@ -240,6 +258,68 @@ document.getElementById("download-button").addEventListener("click", function ()
   link.click();
   document.body.removeChild(link);
 });
+
+window.addEventListener("paste", function (e) {
+  const items = e.clipboardData.items;
+  for (let i = 0; i < items.length; i++) {
+    if (items[i].type.indexOf("image") !== -1) {
+      const file = items[i].getAsFile();
+      const reader = new FileReader();
+      reader.onload = function (event) {
+        document.getElementById("h1-title").style.display = "none";
+        canvasImage.onload = function () {
+          originalImageWidth = canvasImage.width;
+          originalImageHeight = canvasImage.height;
+
+          const scale = Math.min(
+            MAX_WIDTH / canvasImage.width,
+            MAX_HEIGHT / canvasImage.height,
+            1
+          );
+          canvas.width = canvasImage.width * scale;
+          canvas.height = canvasImage.height * scale;
+          drawCanvas();
+          document.querySelector(".button-container").style.display = "flex";
+        };
+        canvasImage.src = event.target.result;
+      };
+      reader.readAsDataURL(file);
+      break;  // Exit loop after processing first image item
+    }
+  }
+});
+
+canvas.addEventListener("dragover", function (e) {
+  e.preventDefault();  // Prevent default to allow drop
+});
+
+canvas.addEventListener("drop", function (e) {
+  e.preventDefault();
+  const file = e.dataTransfer.files[0];
+  if (file && file.type.indexOf("image") !== -1) {
+    const reader = new FileReader();
+    reader.onload = function (event) {
+      document.getElementById("h1-title").style.display = "none";
+      canvasImage.onload = function () {
+        originalImageWidth = canvasImage.width;
+        originalImageHeight = canvasImage.height;
+
+        const scale = Math.min(
+          MAX_WIDTH / canvasImage.width,
+          MAX_HEIGHT / canvasImage.height,
+          1
+        );
+        canvas.width = canvasImage.width * scale;
+        canvas.height = canvasImage.height * scale;
+        drawCanvas();
+        document.querySelector(".button-container").style.display = "flex";
+      };
+      canvasImage.src = event.target.result;
+    };
+    reader.readAsDataURL(file);
+  }
+});
+
 
 function drawCanvas() {
   ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear the canvas before redrawing
