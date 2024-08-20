@@ -250,13 +250,14 @@ document.getElementById("download-button").addEventListener("click", function ()
     fullResCtx.restore();
   });
 
-  const imageDataUrl = fullResCanvas.toDataURL();
-  const link = document.createElement("a");
-  link.href = imageDataUrl;
-  link.download = "dark_pfp_full_res.png";
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
+  fullResCanvas.toBlob(function (blob) {
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = "dark_pfp_full_res.png";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }, 'image/png');
 });
 
 window.addEventListener("paste", function (e) {
