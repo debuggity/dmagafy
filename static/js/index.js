@@ -9,6 +9,11 @@ let lasers = [];
 let isDragging = false;
 let currentLaser = null;
 let offsetX, offsetY;
+
+let selectedHatImage = null;
+let hats = [];
+let currentHat = null;
+
 const MAX_WIDTH = 640;
 const MAX_HEIGHT = 480;
 
@@ -72,6 +77,32 @@ document.getElementById("add-laser-button").addEventListener("click", function (
   drawCanvas();
 });
 
+document.getElementById("add-hat-button").addEventListener("click", function () {
+  if (!selectedHatImage) return;
+
+  const aspectRatio = selectedHatImage.width / selectedHatImage.height;
+  
+  let hatWidth = (canvas.width / 5) * 2;
+  let hatHeight = hatWidth / aspectRatio;
+
+  if (hatHeight > canvas.height) {
+    hatHeight = (canvas.height / 5) * 2;
+    hatWidth = hatHeight * aspectRatio;
+  }
+
+  const hat = {
+    image: selectedHatImage,
+    width: hatWidth,
+    height: hatHeight,
+    x: canvas.width / 2 - hatWidth / 2,
+    y: canvas.height / 2 - hatHeight / 2,
+    rotation: 0,
+  };
+  hats.push(hat);
+  drawCanvas();
+});
+
+
 document.getElementById("resize-slider").addEventListener("input", function (e) {
   const scale = e.target.value;
   lasers.forEach((laser) => {
@@ -88,12 +119,58 @@ document.getElementById("resize-slider").addEventListener("input", function (e) 
   drawCanvas();
 });
 
+document.getElementById("hat-resize-slider").addEventListener("input", function (e) {
+  const scale = e.target.value;
+  hats.forEach((hat) => {
+    const aspectRatio = hat.image.width / hat.image.height;
+    const centerX = hat.x + hat.width / 2;
+    const centerY = hat.y + hat.height / 2;
+
+    hat.width = (canvas.width / 5) * scale * 2;
+    hat.height = hat.width / aspectRatio;
+
+    hat.x = centerX - hat.width / 2;
+    hat.y = centerY - hat.height / 2;
+  });
+  drawCanvas();
+});
+
 document.getElementById("rotate-slider").addEventListener("input", function (e) {
   const rotation = (e.target.value * Math.PI) / 180;
   lasers.forEach((laser) => {
     laser.rotation = rotation;
   });
   drawCanvas();
+});
+
+document.getElementById("hat-rotate-slider").addEventListener("input", function (e) {
+  const rotation = (e.target.value * Math.PI) / 180;
+  hats.forEach((hat) => {
+    hat.rotation = rotation;
+  });
+  drawCanvas();
+});
+
+
+document.querySelectorAll('.hat-option').forEach(option => {
+  option.addEventListener('click', function () {
+    document.querySelectorAll('.hat-option').forEach(opt => opt.classList.remove('selected'));
+    this.classList.add('selected');
+
+    selectedHatImage = new Image();
+    
+    // Set the URL of the hat image
+    const hatUrl = {
+      'hat1': "https://dmagafy.netlify.app/hat_front_1.png",
+      'hat2': "https://dmagafy.netlify.app/hat_front_2.png",
+      'hatLeft': "https://dmagafy.netlify.app/hat_left.png",
+      'hatRight': "https://dmagafy.netlify.app/hat_right.png"
+    };
+
+    const hatType = this.getAttribute('data-hat');
+    selectedHatImage.src = hatUrl[hatType];
+    selectedHatImage.crossOrigin = 'anonymous';  // Add this if images are hosted on a different domain
+  });
 });
 
 document.querySelectorAll('.filter-option').forEach(option => {
@@ -108,9 +185,11 @@ document.querySelectorAll('.filter-option').forEach(option => {
 canvas.addEventListener("mousedown", function (e) {
   const mouseX = e.offsetX;
   const mouseY = e.offsetY;
-  currentLaser = null;
   let closestDistance = Infinity;
+  currentLaser = null;
+  currentHat = null;
 
+  // Check lasers for closest
   lasers.forEach((laser) => {
     const centerX = laser.x + laser.width / 2;
     const centerY = laser.y + laser.height / 2;
@@ -125,34 +204,77 @@ canvas.addEventListener("mousedown", function (e) {
       mouseY < laser.y + laser.height &&
       distance < closestDistance
     ) {
-      laser.isDragging = true;
+      closestDistance = distance;
+      currentLaser = laser;
+      currentHat = null; // Reset currentHat to ensure only one is selected
       offsetX = mouseX - laser.x;
       offsetY = mouseY - laser.y;
-      currentLaser = laser;
-      closestDistance = distance;
     }
   });
 
-  if (currentLaser) {
+  // Check hats for closest, only if closer than the closest laser
+  hats.forEach((hat) => {
+    const centerX = hat.x + hat.width / 2;
+    const centerY = hat.y + hat.height / 2;
+    const distance = Math.sqrt(
+      Math.pow(mouseX - centerX, 2) + Math.pow(mouseY - centerY, 2)
+    );
+
+    if (
+      mouseX > hat.x &&
+      mouseX < hat.x + hat.width &&
+      mouseY > hat.y &&
+      mouseY < hat.y + hat.height &&
+      distance < closestDistance
+    ) {
+      closestDistance = distance;
+      currentHat = hat;
+      currentLaser = null; // Reset currentLaser to ensure only one is selected
+      offsetX = mouseX - hat.x;
+      offsetY = mouseY - hat.y;
+    }
+  });
+
+  // Set dragging flag if either laser or hat is selected
+  if (currentLaser || currentHat) {
     isDragging = true;
   }
 });
 
 canvas.addEventListener("mousemove", function (e) {
-  if (isDragging && currentLaser) {
+  if (isDragging) {
     const mouseX = e.offsetX;
     const mouseY = e.offsetY;
-    currentLaser.x = mouseX - offsetX;
-    currentLaser.y = mouseY - offsetY;
-    drawCanvas();
+
+    // If dragging a laser
+    if (currentLaser) {
+      currentLaser.x = mouseX - offsetX;
+      currentLaser.y = mouseY - offsetY;
+    }
+
+    // If dragging a hat
+    if (currentHat) {
+      currentHat.x = mouseX - offsetX;
+      currentHat.y = mouseY - offsetY;
+    }
+
+    drawCanvas(); // Redraw canvas with updated positions
   }
 });
 
 canvas.addEventListener("mouseup", function () {
-  if (currentLaser) {
-    currentLaser.isDragging = false;
+  if (isDragging) {
+    if (currentLaser) {
+      currentLaser.isDragging = false;
+    }
+
+    if (currentHat) {
+      currentHat.isDragging = false;
+    }
+
     isDragging = false;
     currentLaser = null;
+    currentHat = null; // Reset everything after mouse release
   }
 });
 
@@ -165,9 +287,12 @@ canvas.addEventListener("touchstart", function (e) {
   const scaleY = canvas.height / rect.height;
   const mouseX = (touch.clientX - rect.left) * scaleX;
   const mouseY = (touch.clientY - rect.top) * scaleY;
-  currentLaser = null;
-  let closestDistance = Infinity;
 
+  let closestDistance = Infinity;
+  currentLaser = null;
+  currentHat = null;
+
+  // Check lasers for closest
   lasers.forEach((laser) => {
     const centerX = laser.x + laser.width / 2;
     const centerY = laser.y + laser.height / 2;
@@ -182,21 +307,44 @@ canvas.addEventListener("touchstart", function (e) {
       mouseY < laser.y + laser.height &&
       distance < closestDistance
     ) {
-      laser.isDragging = true;
+      closestDistance = distance;
+      currentLaser = laser;
+      currentHat = null; // Ensure no hat is selected if a laser is closer
       offsetX = mouseX - laser.x;
       offsetY = mouseY - laser.y;
-      currentLaser = laser;
-      closestDistance = distance;
     }
   });
 
-  if (currentLaser) {
+  // Check hats for closest, but only if no closer laser is found
+  hats.forEach((hat) => {
+    const centerX = hat.x + hat.width / 2;
+    const centerY = hat.y + hat.height / 2;
+    const distance = Math.sqrt(
+      Math.pow(mouseX - centerX, 2) + Math.pow(mouseY - centerY, 2)
+    );
+
+    if (
+      mouseX > hat.x &&
+      mouseX < hat.x + hat.width &&
+      mouseY > hat.y &&
+      mouseY < hat.y + hat.height &&
+      distance < closestDistance
+    ) {
+      closestDistance = distance;
+      currentHat = hat;
+      currentLaser = null; // Ensure no laser is selected if a hat is closer
+      offsetX = mouseX - hat.x;
+      offsetY = mouseY - hat.y;
+    }
+  });
+
+  if (currentLaser || currentHat) {
     isDragging = true;
   }
 });
 
 canvas.addEventListener("touchmove", function (e) {
-  if (isDragging && currentLaser) {
+  if (isDragging) {
     e.preventDefault();
     const touch = e.touches[0];
     const rect = canvas.getBoundingClientRect();
@@ -204,9 +352,18 @@ canvas.addEventListener("touchmove", function (e) {
     const scaleY = canvas.height / rect.height;
     const mouseX = (touch.clientX - rect.left) * scaleX;
     const mouseY = (touch.clientY - rect.top) * scaleY;
-    currentLaser.x = mouseX - offsetX;
-    currentLaser.y = mouseY - offsetY;
-    drawCanvas();
+
+    if (currentLaser) {
+      currentLaser.x = mouseX - offsetX;
+      currentLaser.y = mouseY - offsetY;
+    }
+
+    if (currentHat) {
+      currentHat.x = mouseX - offsetX;
+      currentHat.y = mouseY - offsetY;
+    }
+
+    drawCanvas();  // Redraw canvas with updated positions
   }
 });
 
@@ -230,9 +387,13 @@ document.getElementById("download-button").addEventListener("click", function ()
   // Apply the gradient map filter to the full resolution canvas
   applyFullResGradientMapFilter(fullResCtx, fullResCanvas.width, fullResCanvas.height);
 
+  // Apply contrast and redness adjustments
+  applyFullResContrastAndRedness(fullResCtx, fullResCanvas.width, fullResCanvas.height);
+
   const scaleX = fullResCanvas.width / canvas.width;
   const scaleY = fullResCanvas.height / canvas.height;
 
+  // Draw lasers on the full resolution canvas
   lasers.forEach((laser) => {
     fullResCtx.save();
     fullResCtx.translate(
@@ -250,6 +411,25 @@ document.getElementById("download-button").addEventListener("click", function ()
     fullResCtx.restore();
   });
 
+  // Draw hats on the full resolution canvas
+  hats.forEach((hat) => {
+    fullResCtx.save();
+    fullResCtx.translate(
+      hat.x * scaleX + (hat.width * scaleX) / 2,
+      hat.y * scaleY + (hat.height * scaleY) / 2
+    );
+    fullResCtx.rotate(hat.rotation);
+    fullResCtx.drawImage(
+      hat.image,
+      -(hat.width * scaleX) / 2,
+      -(hat.height * scaleY) / 2,
+      hat.width * scaleX,
+      hat.height * scaleY
+    );
+    fullResCtx.restore();
+  });
+
+  // Create a blob and download the image
   fullResCanvas.toBlob(function (blob) {
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
@@ -321,11 +501,34 @@ canvas.addEventListener("drop", function (e) {
   }
 });
 
+document.getElementById("contrast-slider").addEventListener("input", function (e) {
+  contrastValue = e.target.value;
+  drawCanvas();
+});
+
+document.getElementById("redness-slider").addEventListener("input", function (e) {
+  rednessValue = e.target.value;
+  drawCanvas();
+});
+
+// Reset adjustments
+document.getElementById("reset-adjustments-button").addEventListener("click", function () {
+  contrastValue = 1;
+  rednessValue = 1;
+  document.getElementById("contrast-slider").value = 1;
+  document.getElementById("redness-slider").value = 1;
+  drawCanvas();
+});
+
+
+let contrastValue = 1;  // Default contrast value
+let rednessValue = 1;   // Default redness value
 
 function drawCanvas() {
   ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear the canvas before redrawing
   ctx.drawImage(canvasImage, 0, 0, canvas.width, canvas.height);
 
+  // Apply selected filter
   if (currentFilter === 'dark') {
     applyGradientMapFilter(ctx, canvas.width, canvas.height);
   } else if (currentFilter === 'classic') {
@@ -334,19 +537,48 @@ function drawCanvas() {
     applyLightFilter(ctx, canvas.width, canvas.height);
   }
 
+  // Apply contrast and redness adjustments
+  applyContrastAndRedness(ctx, canvas.width, canvas.height);
+
+  // Draw lasers
   lasers.forEach((laser) => {
     ctx.save();
     ctx.translate(laser.x + laser.width / 2, laser.y + laser.height / 2);
     ctx.rotate(laser.rotation);
-    ctx.drawImage(
-      laser.image,
-      -laser.width / 2,
-      -laser.height / 2,
-      laser.width,
-      laser.height
-    );
+    ctx.drawImage(laser.image, -laser.width / 2, -laser.height / 2, laser.width, laser.height);
     ctx.restore();
   });
+
+  // Draw hats
+  hats.forEach((hat) => {
+    ctx.save();
+    ctx.translate(hat.x + hat.width / 2, hat.y + hat.height / 2);
+    ctx.rotate(hat.rotation);
+    ctx.drawImage(hat.image, -hat.width / 2, -hat.height / 2, hat.width, hat.height);
+    ctx.restore();
+  });
+}
+
+function applyContrastAndRedness(context, width, height) {
+  const imageData = context.getImageData(0, 0, width, height);
+  const data = imageData.data;
+
+  for (let i = 0; i < data.length; i += 4) {
+    // Apply contrast adjustment
+    data[i] = ((data[i] - 128) * contrastValue + 128);  // Red channel
+    data[i + 1] = ((data[i + 1] - 128) * contrastValue + 128);  // Green channel
+    data[i + 2] = ((data[i + 2] - 128) * contrastValue + 128);  // Blue channel
+
+    // Calculate average intensity (grayscale value)
+    const avg = (data[i] + data[i + 1] + data[i + 2]) / 3;
+
+    // Apply saturation adjustment (rednessValue now represents saturation)
+    data[i] = avg + (data[i] - avg) * rednessValue;  // Red channel
+    data[i + 1] = avg + (data[i + 1] - avg) * rednessValue;  // Green channel
+    data[i + 2] = avg + (data[i + 2] - avg) * rednessValue;  // Blue channel
+  }
+
+  context.putImageData(imageData, 0, 0);
 }
 
 function applyGradientMapFilter(context, width, height) {
@@ -442,6 +674,24 @@ function applyLightFilter(context, width, height) {
 
   context.putImageData(imageData, 0, 0);
 }
+
+function applyFullResContrastAndRedness(context, width, height) {
+  const imageData = context.getImageData(0, 0, width, height);
+  const data = imageData.data;
+
+  for (let i = 0; i < data.length; i += 4) {
+    // Apply contrast adjustment
+    data[i] = ((data[i] - 128) * contrastValue + 128);  // Red channel
+    data[i + 1] = ((data[i + 1] - 128) * contrastValue + 128);  // Green channel
+    data[i + 2] = ((data[i + 2] - 128) * contrastValue + 128);  // Blue channel
+
+    // Apply redness adjustment
+    data[i] = data[i] * rednessValue;  // Only adjust red channel
+  }
+
+  context.putImageData(imageData, 0, 0);
+}
+
 
 function applyFullResGradientMapFilter(context, width, height) {
   if (currentFilter === 'dark') {
