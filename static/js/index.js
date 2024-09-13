@@ -1,7 +1,7 @@
 const canvas = document.getElementById("meme-canvas");
 const ctx = canvas.getContext("2d", { willReadFrequently: true });
 const laserImageTemplate = new Image();
-laserImageTemplate.src = "https://dmagafy.netlify.app/laser_large.png";
+laserImageTemplate.src = "https://dmagafy-staging.netlify.app/laser_large.png";
 laserImageTemplate.crossOrigin = "anonymous";
 
 let canvasImage = new Image();
@@ -161,10 +161,10 @@ document.querySelectorAll('.hat-option').forEach(option => {
     
     // Set the URL of the hat image
     const hatUrl = {
-      'hat1': "https://dmagafy.netlify.app/hat_front_1.png",
-      'hat2': "https://dmagafy.netlify.app/hat_front_2.png",
-      'hatLeft': "https://dmagafy.netlify.app/hat_left.png",
-      'hatRight': "https://dmagafy.netlify.app/hat_right.png"
+      'hat1': "https://dmagafy-staging.netlify.app/hat_front_1.png",
+      'hat2': "https://dmagafy-staging.netlify.app/hat_front_2.png",
+      'hatLeft': "https://dmagafy-staging.netlify.app/hat_left.png",
+      'hatRight': "https://dmagafy-staging.netlify.app/hat_right.png"
     };
 
     const hatType = this.getAttribute('data-hat');
@@ -535,6 +535,8 @@ function drawCanvas() {
     applyClassicRedFilter(ctx, canvas.width, canvas.height);
   } else if (currentFilter === 'light') {
     applyLightFilter(ctx, canvas.width, canvas.height);
+  } else if (currentFilter === 'none') {
+    // No filter applied, just draw the image
   }
 
   // Apply contrast and redness adjustments
@@ -702,3 +704,30 @@ function applyFullResGradientMapFilter(context, width, height) {
     applyLightFilter(context, width, height);
   }
 }
+
+// Tab functionality
+document.querySelectorAll('.tab-link').forEach(tab => {
+  tab.addEventListener('click', function() {
+    const tab_id = this.getAttribute('data-tab');
+
+    document.querySelectorAll('.tab-link').forEach(tab => {
+      tab.classList.remove('current');
+    });
+    document.querySelectorAll('.tab-content').forEach(content => {
+      content.classList.remove('current');
+    });
+
+    this.classList.add('current');
+    document.getElementById(tab_id).classList.add('current');
+  });
+});
+
+document.getElementById("remove-all-lasers-button").addEventListener("click", function () {
+  lasers = [];
+  drawCanvas();
+});
+
+document.getElementById("remove-all-hats-button").addEventListener("click", function () {
+  hats = [];
+  drawCanvas();
+});
