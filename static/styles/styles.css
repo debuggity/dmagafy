@@ -238,11 +238,6 @@ label:active {
   transform: scale(1.1);
 }
 
-.filter-options {
-  display: flex;
-  gap: 20px;  /* Increase gap between filter options */
-}
-
 .filter-option {
   padding: 10px 20px;  /* Increase padding for a more button-like feel */
   background-color: #333;
@@ -342,6 +337,26 @@ h1 {
 
 /* Adjustments for mobile */
 @media (max-width: 700px) {
+
+  .tabs {
+    display: flex;
+    justify-content: center;
+    overflow-x: auto;
+    white-space: nowrap;
+    -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+    scrollbar-width: none; /* Hide scrollbar in Firefox */
+  }
+
+  .tabs::-webkit-scrollbar {
+    display: none; /* Hide scrollbar in Chrome, Safari, and Edge */
+  }
+
+  .tab-link {
+    flex: 0 0 auto; /* Prevent the tabs from shrinking */
+    padding: 10px; /* Adjust padding for smaller screens */
+    font-size: 14px; /* Adjust font size for better readability */
+  }
+
   .tab-container {
     max-width: 85%;
     padding: 20px;
@@ -350,13 +365,13 @@ h1 {
   #canvas-container {
     display: flex;
     justify-content: center;
-    width: 75%; /* Make sure it uses the full width of the mobile screen */
-    max-width: 75%; /* Prevents overflowing beyond the viewport */
+    width: 80%; /* Make sure it uses the full width of the mobile screen */
+    max-width: 80%; /* Prevents overflowing beyond the viewport */
     margin: 5 auto;  /* Center the canvas */
   }
 
   canvas {
-    max-width: 75%;  /* Ensure the canvas fits within the container */
+    max-width: 80%;  /* Ensure the canvas fits within the container */
     height: auto;     /* Maintain the aspect ratio */
   }
 
