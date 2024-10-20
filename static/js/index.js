@@ -1,8 +1,13 @@
 const canvas = document.getElementById("meme-canvas");
 const ctx = canvas.getContext("2d", { willReadFrequently: true });
+
 const laserImageTemplate = new Image();
 laserImageTemplate.src = "https://dmagafy.netlify.app/laser_large.png";
 laserImageTemplate.crossOrigin = "anonymous";
+
+let laserTopImage = new Image();
+laserTopImage.src = "https://dmagafy.netlify.app/laser_top.png"; // Replace with your actual URL
+laserTopImage.crossOrigin = "anonymous";
 
 let canvasImage = new Image();
 let lasers = [];
@@ -216,15 +221,17 @@ document.getElementById("image-upload").addEventListener("change", function (e) 
 
 document.getElementById("add-laser-button").addEventListener("click", function () {
   const aspectRatio = laserImageTemplate.width / laserImageTemplate.height;
-  
-  let laserWidth = (canvas.width / 5) * 3; // Double the size
-  let laserHeight = laserWidth / aspectRatio; // Adjust height based on aspect ratio
 
+  // Use a higher percentage of the canvas size to determine the initial laser size
+  let laserWidth = canvas.width * 0.5; // Increased to 50% of the canvas width
+  let laserHeight = laserWidth / aspectRatio;
+
+  // Ensure the laser fits within the canvas bounds
   if (laserHeight > canvas.height) {
-    laserHeight = (canvas.height / 5) * 3;
+    laserHeight = canvas.height * 0.5; // 50% of canvas height if it's taller
     laserWidth = laserHeight * aspectRatio;
   }
-  
+
   const laser = {
     image: laserImageTemplate,
     width: laserWidth,
@@ -236,6 +243,7 @@ document.getElementById("add-laser-button").addEventListener("click", function (
   lasers.push(laser);
   drawCanvas();
 });
+
 
 document.getElementById("add-hat-button").addEventListener("click", function () {
   if (!selectedHatImage) return;
@@ -263,13 +271,14 @@ document.getElementById("add-hat-button").addEventListener("click", function () 
 });
 
 document.getElementById("resize-slider").addEventListener("input", function (e) {
-  const scale = e.target.value;
+  const scale = Math.max(parseFloat(e.target.value), 0.5); // Keep a minimum of 0.5 to avoid negatives
   lasers.forEach((laser) => {
     const aspectRatio = laser.image.width / laser.image.height;
     const centerX = laser.x + laser.width / 2;
     const centerY = laser.y + laser.height / 2;
 
-    laser.width = (canvas.width / 5) * scale * 2;
+    // Increase the multiplier to allow larger lasers
+    laser.width = (MAX_WIDTH / 5) * scale * 2;
     laser.height = laser.width / aspectRatio;
 
     laser.x = centerX - laser.width / 2;
@@ -277,6 +286,7 @@ document.getElementById("resize-slider").addEventListener("input", function (e) 
   });
   drawCanvas();
 });
+
 
 document.getElementById("hat-resize-slider").addEventListener("input", function (e) {
   const scale = e.target.value;
@@ -534,6 +544,7 @@ canvas.addEventListener("touchend", function () {
   }
 });
 
+// Updated download button handler
 document.getElementById("download-button").addEventListener("click", function () {
   // Create a temporary canvas for exporting the full resolution image
   const fullResCanvas = document.createElement("canvas");
@@ -546,103 +557,98 @@ document.getElementById("download-button").addEventListener("click", function ()
 
   // Apply the selected filter directly to the fullResCanvas
   if (currentFilter === 'dark') {
-      applyGradientMapFilter(fullResCtx, fullResCanvas.width, fullResCanvas.height);
+    applyGradientMapFilter(fullResCtx, fullResCanvas.width, fullResCanvas.height);
   } else if (currentFilter === 'classic') {
-      applyClassicRedFilter(fullResCtx, fullResCanvas.width, fullResCanvas.height);
+    applyClassicRedFilter(fullResCtx, fullResCanvas.width, fullResCanvas.height);
   } else if (currentFilter === 'light') {
-      applyLightFilter(fullResCtx, fullResCanvas.width, fullResCanvas.height);
+    applyLightFilter(fullResCtx, fullResCanvas.width, fullResCanvas.height);
   }
 
-  // Create a new canvas for the final output
-  const finalCanvas = document.createElement("canvas");
-  finalCanvas.width = originalImageWidth;
-  finalCanvas.height = originalImageHeight;
-  const finalCtx = finalCanvas.getContext("2d");
-
-  // Redraw the filtered image
-  finalCtx.drawImage(fullResCanvas, 0, 0);
-
   // Apply contrast and redness adjustments
-  applyContrastAndRedness(finalCtx, finalCanvas.width, finalCanvas.height);
+  applyContrastAndRedness(fullResCtx, fullResCanvas.width, fullResCanvas.height);
 
   // Draw the background if it is applied
   if (flagApplied && savedMaskImage) {
-      const backgroundAspectRatio = selectedBackgroundImage.width / selectedBackgroundImage.height;
-      let backgroundWidth, backgroundHeight;
+    const backgroundAspectRatio = selectedBackgroundImage.width / selectedBackgroundImage.height;
+    let backgroundWidth, backgroundHeight;
 
-      if (finalCanvas.width / finalCanvas.height > backgroundAspectRatio) {
-          backgroundWidth = finalCanvas.width;
-          backgroundHeight = backgroundWidth / backgroundAspectRatio;
-      } else {
-          backgroundHeight = finalCanvas.height;
-          backgroundWidth = backgroundHeight * backgroundAspectRatio;
-      }
+    if (fullResCanvas.width / fullResCanvas.height > backgroundAspectRatio) {
+      backgroundWidth = fullResCanvas.width;
+      backgroundHeight = backgroundWidth / backgroundAspectRatio;
+    } else {
+      backgroundHeight = fullResCanvas.height;
+      backgroundWidth = backgroundHeight * backgroundAspectRatio;
+    }
 
-      // Center the background on the canvas
-      const backgroundX = (finalCanvas.width - backgroundWidth) / 2;
-      const backgroundY = (finalCanvas.height - backgroundHeight) / 2;
+    // Center the background on the canvas
+    const backgroundX = (fullResCanvas.width - backgroundWidth) / 2;
+    const backgroundY = (fullResCanvas.height - backgroundHeight) / 2;
 
-      finalCtx.globalAlpha = flagOpacity; // Set the background opacity
-      finalCtx.drawImage(selectedBackgroundImage, backgroundX, backgroundY, backgroundWidth, backgroundHeight);
-      finalCtx.globalAlpha = 1; // Reset opacity for the next drawings
+    fullResCtx.globalAlpha = flagOpacity;
+    fullResCtx.drawImage(selectedBackgroundImage, backgroundX, backgroundY, backgroundWidth, backgroundHeight);
+    fullResCtx.globalAlpha = 1;
   }
 
   // Draw the masked image on top of the background (if applied)
   if (flagApplied && savedMaskImage) {
-      finalCtx.drawImage(savedMaskImage, 0, 0, finalCanvas.width, finalCanvas.height);
+    fullResCtx.drawImage(savedMaskImage, 0, 0, fullResCanvas.width, fullResCanvas.height);
   }
 
-  // Draw lasers at their respective positions
-  const scaleX = finalCanvas.width / canvas.width;
-  const scaleY = finalCanvas.height / canvas.height;
+  // Calculate scale factors for full resolution
+  const scaleX = fullResCanvas.width / canvas.width;
+  const scaleY = fullResCanvas.height / canvas.height;
+
+  // Draw lasers at full resolution in two passes
   lasers.forEach((laser) => {
-      finalCtx.save();
-      finalCtx.translate(
-          (laser.x + laser.width / 2) * scaleX,
-          (laser.y + laser.height / 2) * scaleY
-      );
-      finalCtx.rotate(laser.rotation);
-      finalCtx.drawImage(
-          laser.image,
-          -laser.width * scaleX / 2,
-          -laser.height * scaleY / 2,
-          laser.width * scaleX,
-          laser.height * scaleY
-      );
-      finalCtx.restore();
+    const scaledLaser = {
+      ...laser,
+      x: laser.x * scaleX,
+      y: laser.y * scaleY,
+      width: laser.width * scaleX,
+      height: laser.height * scaleY
+    };
+    drawLaser(scaledLaser, fullResCtx);
   });
 
-  // Draw hats at their respective positions
+  lasers.forEach((laser) => {
+    const scaledLaser = {
+      ...laser,
+      x: laser.x * scaleX,
+      y: laser.y * scaleY,
+      width: laser.width * scaleX,
+      height: laser.height * scaleY
+    };
+    drawLaserCenter(scaledLaser, fullResCtx);
+  });
+
+  // Draw hats at full resolution
   hats.forEach((hat) => {
-      finalCtx.save();
-      finalCtx.translate(
-          (hat.x + hat.width / 2) * scaleX,
-          (hat.y + hat.height / 2) * scaleY
-      );
-      finalCtx.rotate(hat.rotation);
-      finalCtx.drawImage(
-          hat.image,
-          -hat.width * scaleX / 2,
-          -hat.height * scaleY / 2,
-          hat.width * scaleX,
-          hat.height * scaleY
-      );
-      finalCtx.restore();
+    fullResCtx.save();
+    fullResCtx.translate(
+      (hat.x + hat.width / 2) * scaleX,
+      (hat.y + hat.height / 2) * scaleY
+    );
+    fullResCtx.rotate(hat.rotation);
+    fullResCtx.drawImage(
+      hat.image,
+      -hat.width * scaleX / 2,
+      -hat.height * scaleY / 2,
+      hat.width * scaleX,
+      hat.height * scaleY
+    );
+    fullResCtx.restore();
   });
 
   // Export the final image as a PNG
-  finalCanvas.toBlob(function (blob) {
-      const link = document.createElement("a");
-      link.href = URL.createObjectURL(blob);
-      link.download = "dark_pfp_with_background.png";
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+  fullResCanvas.toBlob(function (blob) {
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = "dark_pfp_with_background.png";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   }, 'image/png');
 });
-
-
-
 
 window.addEventListener("paste", function (e) {
   const items = e.clipboardData.items;
@@ -728,22 +734,20 @@ document.getElementById("reset-adjustments-button").addEventListener("click", fu
 let contrastValue = 1;  // Default contrast value
 let rednessValue = 1;   // Default redness value
 
-// Ensure drawCanvas handles lasers, hats, filters, and the flag if applied
-// Ensure drawCanvas handles lasers, hats, filters, and the flag if applied
 function drawCanvas() {
   // Clear the canvas before drawing
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  // Draw the base image (the original uploaded image).
+  // Draw the base image (the original uploaded image)
   ctx.drawImage(canvasImage, 0, 0, canvas.width, canvas.height);
 
   // Apply the selected filter (if any)
   if (currentFilter === 'dark') {
-      applyGradientMapFilter(ctx, canvas.width, canvas.height);
+    applyGradientMapFilter(ctx, canvas.width, canvas.height);
   } else if (currentFilter === 'classic') {
-      applyClassicRedFilter(ctx, canvas.width, canvas.height);
+    applyClassicRedFilter(ctx, canvas.width, canvas.height);
   } else if (currentFilter === 'light') {
-      applyLightFilter(ctx, canvas.width, canvas.height);
+    applyLightFilter(ctx, canvas.width, canvas.height);
   }
 
   // Apply contrast and redness adjustments
@@ -751,10 +755,9 @@ function drawCanvas() {
 
   // Draw the flag and masked image if the flag is applied
   if (flagApplied && savedMaskImage) {
-    // Calculate dimensions to maintain the background's aspect ratio while covering the entire canvas
     const backgroundAspectRatio = selectedBackgroundImage.width / selectedBackgroundImage.height;
     let backgroundWidth, backgroundHeight;
-  
+
     if (canvas.width / canvas.height > backgroundAspectRatio) {
       backgroundWidth = canvas.width;
       backgroundHeight = backgroundWidth / backgroundAspectRatio;
@@ -762,39 +765,128 @@ function drawCanvas() {
       backgroundHeight = canvas.height;
       backgroundWidth = backgroundHeight * backgroundAspectRatio;
     }
-  
-    // Center the background image on the canvas (crop overflow equally)
+
     const backgroundX = (canvas.width - backgroundWidth) / 2;
     const backgroundY = (canvas.height - backgroundHeight) / 2;
-  
-    // Draw the background with the specified opacity, maintaining aspect ratio
+
     ctx.globalAlpha = flagOpacity;
     ctx.drawImage(selectedBackgroundImage, backgroundX, backgroundY, backgroundWidth, backgroundHeight);
-    ctx.globalAlpha = 1;  // Reset opacity for the next drawings
-  
-    // Draw the masked image (foreground) on top of the background
-    ctx.drawImage(savedMaskImage, 0, 0, canvas.width, canvas.height);
-  }  
+    ctx.globalAlpha = 1;
 
-  // Draw lasers on top of the filtered image
-  lasers.forEach((laser) => {
-      ctx.save();
-      ctx.translate(laser.x + laser.width / 2, laser.y + laser.height / 2);
-      ctx.rotate(laser.rotation);
-      ctx.drawImage(laser.image, -laser.width / 2, -laser.height / 2, laser.width, laser.height);
-      ctx.restore();
+    ctx.drawImage(savedMaskImage, 0, 0, canvas.width, canvas.height);
+  }
+
+  // Draw lasers in two passes
+  lasers.forEach(laser => {
+    drawLaser(laser, ctx);  // First pass: draw laser with hole
+  });
+  
+  lasers.forEach(laser => {
+    drawLaserCenter(laser, ctx);  // Second pass: draw centers
   });
 
-  // Draw hats on top of the lasers
-  hats.forEach((hat) => {
-      ctx.save();
-      ctx.translate(hat.x + hat.width / 2, hat.y + hat.height / 2);
-      ctx.rotate(hat.rotation);
-      ctx.drawImage(hat.image, -hat.width / 2, -hat.height / 2, hat.width, hat.height);
-      ctx.restore();
+  // Draw hats on top of everything
+  hats.forEach(hat => {
+    ctx.save();
+    ctx.translate(hat.x + hat.width / 2, hat.y + hat.height / 2);
+    ctx.rotate(hat.rotation);
+    ctx.drawImage(hat.image, -hat.width / 2, -hat.height / 2, hat.width, hat.height);
+    ctx.restore();
   });
 }
 
+function drawLaser(laser, context) {
+  context.save();
+  context.translate(laser.x + laser.width / 2, laser.y + laser.height / 2);
+  context.rotate(laser.rotation);
+
+  // Draw the laser image onto the main context (no cutout here anymore)
+  context.drawImage(laser.image, -laser.width / 2, -laser.height / 2, laser.width, laser.height);
+  
+  context.restore();
+}
+
+function drawLaserCenter(laser, context) {
+  context.save();
+  context.translate(laser.x + laser.width / 2, laser.y + laser.height / 2);
+  context.rotate(laser.rotation);
+
+  // Calculate the width and height of the laserTopImage to match the laser size
+  const topWidth = laser.width;
+  const topHeight = laser.height;
+
+  // Draw the laser center directly, without additional temporary canvas or composite operations
+  context.drawImage(
+    laserTopImage,
+    -topWidth / 2,
+    -topHeight / 2,
+    topWidth,
+    topHeight
+  );
+
+  context.restore();
+}
+
+function drawCanvas() {
+  // Clear the canvas before drawing
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // Draw the base image (the original uploaded image)
+  ctx.drawImage(canvasImage, 0, 0, canvas.width, canvas.height);
+
+  // Apply the selected filter (if any)
+  if (currentFilter === 'dark') {
+    applyGradientMapFilter(ctx, canvas.width, canvas.height);
+  } else if (currentFilter === 'classic') {
+    applyClassicRedFilter(ctx, canvas.width, canvas.height);
+  } else if (currentFilter === 'light') {
+    applyLightFilter(ctx, canvas.width, canvas.height);
+  }
+
+  // Apply contrast and redness adjustments
+  applyContrastAndRedness(ctx, canvas.width, canvas.height);
+
+  // Draw the flag and masked image if the flag is applied
+  if (flagApplied && savedMaskImage) {
+    const backgroundAspectRatio = selectedBackgroundImage.width / selectedBackgroundImage.height;
+    let backgroundWidth, backgroundHeight;
+
+    if (canvas.width / canvas.height > backgroundAspectRatio) {
+      backgroundWidth = canvas.width;
+      backgroundHeight = backgroundWidth / backgroundAspectRatio;
+    } else {
+      backgroundHeight = canvas.height;
+      backgroundWidth = backgroundHeight * backgroundAspectRatio;
+    }
+
+    const backgroundX = (canvas.width - backgroundWidth) / 2;
+    const backgroundY = (canvas.height - backgroundHeight) / 2;
+
+    ctx.globalAlpha = flagOpacity;
+    ctx.drawImage(selectedBackgroundImage, backgroundX, backgroundY, backgroundWidth, backgroundHeight);
+    ctx.globalAlpha = 1;
+
+    ctx.drawImage(savedMaskImage, 0, 0, canvas.width, canvas.height);
+  }
+
+  // Draw lasers in two passes
+  lasers.forEach(laser => {
+    drawLaser(laser, ctx);  // First pass: draw laser with hole
+  });
+  
+  lasers.forEach(laser => {
+    drawLaserCenter(laser, ctx);  // Second pass: draw centers
+  });
+
+  // Draw hats on top of everything
+  hats.forEach(hat => {
+    ctx.save();
+    ctx.translate(hat.x + hat.width / 2, hat.y + hat.height / 2);
+    ctx.rotate(hat.rotation);
+    ctx.drawImage(hat.image, -hat.width / 2, -hat.height / 2, hat.width, hat.height);
+    ctx.restore();
+  });
+}
 
 function applyContrastAndRedness(context, width, height) {
   const imageData = context.getImageData(0, 0, width, height);
