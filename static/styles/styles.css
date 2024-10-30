@@ -283,21 +283,28 @@ h1 {
 }
 
 .hat-options {
-  display: flex;
-  gap: 20px;  /* Increase gap between hat options */
+  display: grid;
+  grid-template-columns: repeat(4, 1fr); /* 4 hats per row */
+  gap: 15px;
+  justify-items: center;
 }
 
 .hat-option {
-  width: 60px;  /* Larger hat options */
+  width: 100%; 
+  height: auto;
+  max-width: 80px;
+  max-height: 80px;
   cursor: pointer;
   border: 2px solid transparent;
-  transition: transform 0.2s, border-color 0.3s;
+  transition: transform 0.2s, border-color 0.3s, box-shadow 0.3s;
+  object-fit: contain;
 }
 
 .hat-option:hover,
 .hat-option.selected {
   border: 2px solid #ff0000;
   transform: scale(1.1);
+  box-shadow: 0 0 10px 5px rgba(255, 0, 0, 0.6); /* Red glow effect */
 }
 
 #contrast-slider {
