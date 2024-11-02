@@ -6,13 +6,35 @@
   <title>DMAGA PFP MAKER</title>
 
   <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/ort.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Jockey+One&display=swap" rel="stylesheet">
 
   <link rel="stylesheet" href="static/styles/styles.css" />
 </head>
 
 <body>
-  <h1 id="h1-title">DMAGA PFP MAKER</h1>
-  
+  <header class="header">
+    <div class="header-left">
+      <h1 class="header-title">PFP MAKER</h1>
+      <a href="https://darkmaga.com" class="header-link">DARKMAGA.COM</a>
+    </div>
+    <a href="https://raydium.io/swap/?inputMint=sol&outputMint=7D7BRcBYepfi77vxySapmeqRNN1wsBBxnFPJGbH5pump" target="_blank" class="buy-button">BUY DARK MAGA COIN</a>
+  </header>
+
+  <!-- Initial Load Screen -->
+  <div id="initial-load-screen" class="load-screen background-style">
+    <h1 class="load-title">$DMAGA</h1>
+    <h2 class="load-subtitle">DARKMAGA</h2>
+    <h3 class="load-subtext">PROFILE PICTURE MAKER</h3>
+    <div class="profile-pictures">
+      <img src="./load_assets/circle1.jpg" alt="Circle 1" class="circle-img">
+      <img src="./load_assets/circle2.jpg" alt="Circle 2" class="circle-img">
+      <img src="./load_assets/circle3.jpg" alt="Circle 3" class="circle-img">
+      <img src="./load_assets/circle4.jpg" alt="Circle 4" class="circle-img">
+    </div>
+    <button class="upload-btn">Upload Image</button>
+  </div>
+
+
   <div id="canvas-container">
     <canvas id="meme-canvas"></canvas>
   </div>
@@ -27,10 +49,10 @@
   <!-- Tab navigation -->
   <div class="tab-container">
     <ul class="tabs">
-      <li class="tab-link current" data-tab="tab-1">Lasers</li>
-      <li class="tab-link" data-tab="tab-2">Hats</li>
-      <li class="tab-link" data-tab="tab-3">Filters</li>
-      <li class="tab-link" data-tab="tab-4">Backgrounds </li>
+      <li class="tab-link current" data-tab="tab-1">LASERS</li>
+      <li class="tab-link" data-tab="tab-2">HATS</li>
+      <li class="tab-link" data-tab="tab-3">FILTERS</li>
+      <li class="tab-link" data-tab="tab-4">BACKGROUNDS </li>
     </ul>
     
     <!-- Tab content -->
@@ -38,12 +60,12 @@
       <!-- Lasers controls -->
       <div class="controls-container">
         <div class="control">
-          <span>Resize Lasers:</span>
+          <span>Resize Lasers</span>
           <input type="range" id="resize-slider" min="0.5" max="4" step="0.1" value="1.25" />
         </div>
     
         <div class="control">
-          <span>Rotate Lasers:</span>
+          <span>Rotate Lasers</span>
           <input
             type="range"
             id="rotate-slider"
@@ -67,7 +89,16 @@
       <div class="controls-container">
         <div class="hat-container">
           <div class="hat-selection">
-            <span>Select Hat:</span>
+            <div class="control">
+              <span>Resize Hat</span>
+              <input type="range" id="hat-resize-slider" min="0.2" max="2" step="0.05" value="1" />
+            </div>
+            <div class="control">
+              <span>Rotate Hat</span>
+              <input type="range" id="hat-rotate-slider" min="-180" max="180" step="1" value="0" />
+            </div>
+            <br>
+            <span>Select Hat</span>
             <div class="hat-options">
               <img class="hat-option" src="hat_front_1.png" alt="Hat 1" data-hat="hat1" />
               <img class="hat-option" src="hat_front_2.png" alt="Hat 2" data-hat="hat2" />
@@ -77,15 +108,7 @@
               <img class="hat-option" src="goth-side-hat.png" alt="Goth Left" data-hat="gothLeft" />
             </div>
           </div>
-          <br>
-          <div class="control">
-            <span>Resize Hat:</span>
-            <input type="range" id="hat-resize-slider" min="0.2" max="2" step="0.05" value="1" />
-          </div>
-          <div class="control">
-            <span>Rotate Hat:</span>
-            <input type="range" id="hat-rotate-slider" min="-180" max="180" step="1" value="0" />
-          </div>
+          
           <div class="add-hat-button-container">
             <button id="add-hat-button">Add Hat</button>
           </div>
@@ -101,7 +124,7 @@
       <!-- Filters and Adjustments controls -->
       <div class="controls-container">
         <div class="control">
-          <span>Choose Filter:</span>
+          <span>Choose Filter</span>
           <div class="filter-options">
             <div class="filter-option" data-filter="dark">Classic Red</div>
             <div class="filter-option selected" data-filter="classic">Dark</div>
@@ -110,11 +133,11 @@
           </div>
         </div>
         <div class="control">
-          <span>Adjust Contrast:</span>
+          <span>Adjust Contrast</span>
           <input type="range" id="contrast-slider" min="0.5" max="2" step="0.1" value="1" />
         </div>
         <div class="control">
-          <span>Adjust Redness:</span>
+          <span>Adjust Redness</span>
           <input type="range" id="redness-slider" min="0" max="2" step="0.1" value="1" />
         </div>
         <div class="control">
@@ -125,7 +148,7 @@
 
     <div id="tab-4" class="tab-content">
       <div class="controls-container">
-        <span>Select Background:</span>
+        <span>Select Background</span>
         <div class="background-options">
           <label>
             <input type="radio" name="background" value="americanFlag" checked />
@@ -137,17 +160,24 @@
           </label>
         </div>
         <div class="control">
-          <span>Adjust Background Opacity:</span>
+          <span>Adjust Background Opacity</span>
           <input type="range" id="flag-opacity-slider" min="0" max="1" step="0.1" value="0.5" />
         </div>
         <button id="add-background-button">Add Background</button>
         <div class="remove-flag-button-container">
           <button id="remove-flag-button">Remove Background</button>
         </div>
+        <div id="loading-overlay" class="loading-overlay hidden">
+          <div class="spinner"></div>
+        </div>
+        <div id="error-indicator" class="error-indicator hidden">X</div>
       </div>
     </div>
     
   </div>
+
+  <!-- Magnifier Element -->
+  <div id="magnifier"></div>
 
   <script type="text/javascript" src="static/js/index.js"></script>
 </body>

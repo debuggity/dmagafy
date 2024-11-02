@@ -1,5 +1,6 @@
 const canvas = document.getElementById("meme-canvas");
-const ctx = canvas.getContext("2d", { willReadFrequently: true });
+const ctx = canvas.getContext("2d");
+//const ctx = canvas.getContext("2d", { willReadFrequently: true });
 
 const laserImageTemplate = new Image();
 laserImageTemplate.src = "https://dmagafy.netlify.app/laser_large.png";
@@ -37,38 +38,222 @@ let selectedBackgroundImage = americanFlagImage;  // Default to American Flag
 
 let flagOpacity = .5; // Default opacity
 
-let u2netSession;
+// Create an offscreen canvas for magnifier
+const offscreenCanvas = document.createElement('canvas');
+const offscreenCtx = offscreenCanvas.getContext('2d');
 
-// Load the ONNX model
+// Set magnifier properties
+const magnifierSize = 150; // Diameter in pixels
+const magnification = 1.5;   // Zoom level
+
+offscreenCanvas.width = magnifierSize * magnification;
+offscreenCanvas.height = magnifierSize * magnification;
+
+// Magnifier Element
+const magnifier = document.getElementById("magnifier");
+
+// Function to convert canvas coordinates to client (screen) coordinates
+function canvasToClient(canvas, x, y) {
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = rect.width / canvas.width;
+  const scaleY = rect.height / canvas.height;
+  return {
+    clientX: x * scaleX + rect.left,
+    clientY: y * scaleY + rect.top
+  };
+}
+
+// Function to update the magnifier's background using the offscreen canvas
+function updateMagnifierBackground(x, y) {
+  // Determine the center of the selected object
+  let objectCenterX, objectCenterY;
+  if (currentLaser) {
+    objectCenterX = currentLaser.x + currentLaser.width / 2;
+    objectCenterY = currentLaser.y + currentLaser.height / 2;
+  } else if (currentHat) {
+    objectCenterX = currentHat.x + currentHat.width / 2;
+    objectCenterY = currentHat.y + currentHat.height / 2;
+  } else {
+    return; // No object selected
+  }
+
+  // Calculate the area to capture from the main canvas
+  const captureX = objectCenterX - (magnifierSize / 2 - 25) / magnification;
+  const captureY = objectCenterY - (magnifierSize / 2 - 25) / magnification;
+
+  // Clear the offscreen canvas
+  offscreenCtx.clearRect(0, 0, offscreenCanvas.width, offscreenCanvas.height);
+
+  // Draw the captured area onto the offscreen canvas, scaling it up
+  offscreenCtx.drawImage(
+    canvas,
+    captureX,
+    captureY,
+    magnifierSize / magnification,
+    magnifierSize / magnification,
+    0,
+    0,
+    magnifierSize * magnification,
+    magnifierSize * magnification
+  );
+
+  // Update the magnifier's background with the offscreen canvas
+  //magnifier.style.backgroundImage = `url(${offscreenCanvas.toDataURL()})`;
+  //magnifier.style.backgroundSize = `${magnifierSize * magnification}px ${magnifierSize * magnification}px`;
+  
+  // Use the offscreen canvas directly instead of generating a data URL
+  // Apply the offscreen canvas as a background to the magnifier
+  magnifier.style.backgroundImage = `url(${offscreenCanvas.toDataURL()})`; // Optional if direct application isn't possible
+  magnifier.style.backgroundSize = `${magnifierSize * magnification}px ${magnifierSize * magnification}px`;
+
+}
+
+// Function to show the magnifier, centered on the object's center but avoiding the touch point
+function showMagnifier(x, y) {
+  if (!currentLaser) {
+    hideMagnifier(); // Only show magnifier for lasers, hide it for hats
+    return;
+  }
+
+  magnifier.style.display = "block";
+  const offset = 50; // Offset to position magnifier away from touch point
+
+  let left = x + offset;
+  let top = y + offset;
+
+  // Prevent magnifier from going off-screen
+  if (left + magnifierSize > window.innerWidth) {
+    left = x - magnifierSize - offset;
+  }
+  if (top + magnifierSize > window.innerHeight) {
+    top = y - magnifierSize - offset;
+  }
+
+  magnifier.style.left = `${left}px`;
+  magnifier.style.top = `${top}px`;
+
+  // Update magnifier background with current laser position
+  updateMagnifierBackground(x, y);
+}
+
+// Function to move the magnifier as the object is dragged
+function moveMagnifier(x, y) {
+  const offset = 20; // Offset to position magnifier away from touch point
+
+  let left = x + offset;
+  let top = y + offset;
+
+  // Prevent magnifier from going off-screen
+  if (left + magnifierSize > window.innerWidth) {
+    left = x - magnifierSize - offset;
+  }
+  if (top + magnifierSize > window.innerHeight) {
+    top = y - magnifierSize - offset;
+  }
+
+  magnifier.style.left = `${left}px`;
+  magnifier.style.top = `${top}px`;
+
+  // Update magnifier background
+  updateMagnifierBackground(x, y);
+}
+
+// Function to hide the magnifier
+function hideMagnifier() {
+  magnifier.style.display = "none";
+}
+
+
+let modelLoaded = false;
+const loadingOverlay = document.getElementById("loading-overlay");
+const errorIndicator = document.getElementById("error-indicator");
+
+let u2netSession = null; // Initialize only once
+
 async function loadModel() {
-  u2netSession = await ort.InferenceSession.create('./u2netp.onnx');
+  if (u2netSession) return; // Avoid reloading if already loaded
+
+  try {
+    u2netSession = await ort.InferenceSession.create('./u2netp.onnx');
+    modelLoaded = true;
+  } catch (error) {
+    console.error("Failed to load ONNX model:", error);
+    showErrorIndicator();
+  }
+}
+
+// Call this only once during page load
+window.addEventListener('DOMContentLoaded', loadModel);
+
+
+// Show loading overlay only during background removal
+function showLoadingOverlay() {
+  loadingOverlay.classList.remove("hidden");
+  loadingOverlay.style.display = "flex";
+}
+
+// Hide loading overlay after background removal completes
+function hideLoadingOverlay() {
+  loadingOverlay.classList.add("hidden");
+  loadingOverlay.style.display = "none";
+}
+
+// Show error indicator if the model fails
+function showErrorIndicator() {
+  errorIndicator.classList.remove("hidden");
+}
+
+// Hide error indicator once the model is loaded
+function hideErrorIndicator() {
+  errorIndicator.classList.add("hidden");
 }
 
 // State variable to track if the flag is applied
 let flagApplied = false;
 
+// Updated addFlagWithBackgroundRemoval function to handle loading states
 async function addFlagWithBackgroundRemoval() {
+  if (!modelLoaded) {
+    showErrorIndicator();  // Show "X" if the model is not loaded
+    return;
+  }
+
+  hideErrorIndicator(); // Hide error if model is loaded
+
   if (!canvasImage) return;
 
   const inputTensor = preprocessImageForONNX(canvasImage);
 
-  // Perform inference with the ONNX model
-  const output = await u2netSession.run({ 'input.1': inputTensor });
-  const maskImage = postprocessONNXOutput(output[Object.keys(output)[0]], canvasImage);
+  // Show loading animation while processing
+  showLoadingOverlay();
 
-  maskImage.onload = function () {
+  try {
+    // Perform inference with the ONNX model
+    const output = await u2netSession.run({ 'input.1': inputTensor });
+    const maskImage = postprocessONNXOutput(output[Object.keys(output)[0]], canvasImage);
+
+    maskImage.onload = function () {
       // Set flagApplied to true since the user has added the flag
       flagApplied = true;
-
-      // Save the mask image for later use in drawCanvas
       savedMaskImage = maskImage;
 
-      // Redraw everything, including the flag and mask
-      drawCanvas();
-  };
+      drawCanvas();  // Redraw everything, including the flag and mask
+    };
+
+    // Dispose of input and output tensors
+    inputTensor.dispose();
+    Object.values(output).forEach(tensor => tensor.dispose());
+
+  } catch (error) {
+    console.error("Error during background removal:", error);
+    showErrorIndicator();
+  } finally {
+    // Hide loading overlay after processing completes
+    hideLoadingOverlay();
+  }
 }
 
-// Event listeners for adding the flag
+// Event listener for the "Add Background" button
 document.getElementById("add-background-button").addEventListener("click", function () {
   const selectedOption = document.querySelector('input[name="background"]:checked').value;
   if (selectedOption === "americanFlag") {
@@ -77,7 +262,7 @@ document.getElementById("add-background-button").addEventListener("click", funct
     selectedBackgroundImage = lightningImage;
   }
 
-  addFlagWithBackgroundRemoval();  // Re-use the existing function to apply the selected background
+  addFlagWithBackgroundRemoval();  // Run background removal only when button is clicked
 });
 
 document.getElementById("flag-opacity-slider").addEventListener("input", function (e) {
@@ -164,9 +349,6 @@ function postprocessONNXOutput(output, imageElement) {
   return newImgElement;
 }
 
-
-
-
 window.addEventListener('DOMContentLoaded', () => {
   // Set resize slider to the middle
   const resizeSlider = document.getElementById('resize-slider');
@@ -177,12 +359,16 @@ window.addEventListener('DOMContentLoaded', () => {
   rotateSlider.value = '0';  // Middle value between 0 and 360
 });
 
+document.querySelector(".upload-btn").addEventListener("click", () => {
+  document.getElementById("image-upload").click();
+});
+
 document.getElementById("image-upload").addEventListener("change", function (e) {
   const reader = new FileReader();
   reader.onload = function (event) {
-      // Hide any previous titles or placeholders
-      document.getElementById("h1-title").style.display = "none";
-      
+      // Hide the initial load screen
+      document.getElementById("initial-load-screen").style.display = "none";
+
       // Reset the flag and mask state when a new image is uploaded
       flagApplied = false;
       savedMaskImage = null;
@@ -217,6 +403,7 @@ document.getElementById("image-upload").addEventListener("change", function (e) 
   // Read the file as a data URL
   reader.readAsDataURL(e.target.files[0]);
 });
+
 
 
 document.getElementById("add-laser-button").addEventListener("click", function () {
@@ -449,71 +636,86 @@ canvas.addEventListener("mouseup", function () {
   }
 });
 
-// Add touch event listeners
+// Touch Start Event - Shows magnifier only for lasers, but allows dragging for hats too
 canvas.addEventListener("touchstart", function (e) {
   e.preventDefault();
   const touch = e.touches[0];
   const rect = canvas.getBoundingClientRect();
   const scaleX = canvas.width / rect.width;
   const scaleY = canvas.height / rect.height;
-  const mouseX = (touch.clientX - rect.left) * scaleX;
-  const mouseY = (touch.clientY - rect.top) * scaleY;
+  const touchX = (touch.clientX - rect.left) * scaleX;
+  const touchY = (touch.clientY - rect.top) * scaleY;
 
   let closestDistance = Infinity;
   currentLaser = null;
   currentHat = null;
 
-  // Check lasers for closest
+  // Identify the closest laser
   lasers.forEach((laser) => {
     const centerX = laser.x + laser.width / 2;
     const centerY = laser.y + laser.height / 2;
     const distance = Math.sqrt(
-      Math.pow(mouseX - centerX, 2) + Math.pow(mouseY - centerY, 2)
+      Math.pow(touchX - centerX, 2) + Math.pow(touchY - centerY, 2)
     );
 
     if (
-      mouseX > laser.x &&
-      mouseX < laser.x + laser.width &&
-      mouseY > laser.y &&
-      mouseY < laser.y + laser.height &&
+      touchX > laser.x &&
+      touchX < laser.x + laser.width &&
+      touchY > laser.y &&
+      touchY < laser.y + laser.height &&
       distance < closestDistance
     ) {
       closestDistance = distance;
       currentLaser = laser;
-      currentHat = null; // Ensure no hat is selected if a laser is closer
-      offsetX = mouseX - laser.x;
-      offsetY = mouseY - laser.y;
+      currentHat = null;
+      offsetX = touchX - laser.x;
+      offsetY = touchY - laser.y;
     }
   });
 
-  // Check hats for closest, but only if no closer laser is found
+  // Identify the closest hat if no closer laser is found
   hats.forEach((hat) => {
     const centerX = hat.x + hat.width / 2;
     const centerY = hat.y + hat.height / 2;
     const distance = Math.sqrt(
-      Math.pow(mouseX - centerX, 2) + Math.pow(mouseY - centerY, 2)
+      Math.pow(touchX - centerX, 2) + Math.pow(touchY - centerY, 2)
     );
 
     if (
-      mouseX > hat.x &&
-      mouseX < hat.x + hat.width &&
-      mouseY > hat.y &&
-      mouseY < hat.y + hat.height &&
+      touchX > hat.x &&
+      touchX < hat.x + hat.width &&
+      touchY > hat.y &&
+      touchY < hat.y + hat.height &&
       distance < closestDistance
     ) {
       closestDistance = distance;
       currentHat = hat;
-      currentLaser = null; // Ensure no laser is selected if a hat is closer
-      offsetX = mouseX - hat.x;
-      offsetY = mouseY - hat.y;
+      currentLaser = null;
+      offsetX = touchX - hat.x;
+      offsetY = touchY - hat.y;
     }
   });
 
+  // Set dragging flag and show magnifier only for lasers
   if (currentLaser || currentHat) {
     isDragging = true;
+
+    // Show magnifier only if a laser is selected
+    if (currentLaser) {
+      // Calculate the center of the selected laser
+      const objectCenterX = currentLaser.x + currentLaser.width / 2;
+      const objectCenterY = currentLaser.y + currentLaser.height / 2;
+
+      // Convert canvas coordinates to client (screen) coordinates
+      const clientPos = canvasToClient(canvas, objectCenterX, objectCenterY);
+
+      // Show the magnifier centered on the laser's center
+      showMagnifier(clientPos.clientX, clientPos.clientY);
+    }
   }
 });
 
+// Touch Move Event
 canvas.addEventListener("touchmove", function (e) {
   if (isDragging) {
     e.preventDefault();
@@ -521,28 +723,58 @@ canvas.addEventListener("touchmove", function (e) {
     const rect = canvas.getBoundingClientRect();
     const scaleX = canvas.width / rect.width;
     const scaleY = canvas.height / rect.height;
-    const mouseX = (touch.clientX - rect.left) * scaleX;
-    const mouseY = (touch.clientY - rect.top) * scaleY;
+    const touchX = (touch.clientX - rect.left) * scaleX;
+    const touchY = (touch.clientY - rect.top) * scaleY;
 
+    // Update positions of the selected element
     if (currentLaser) {
-      currentLaser.x = mouseX - offsetX;
-      currentLaser.y = mouseY - offsetY;
+      currentLaser.x = touchX - offsetX;
+      currentLaser.y = touchY - offsetY;
     }
 
     if (currentHat) {
-      currentHat.x = mouseX - offsetX;
-      currentHat.y = mouseY - offsetY;
+      currentHat.x = touchX - offsetX;
+      currentHat.y = touchY - offsetY;
     }
 
-    drawCanvas();  // Redraw canvas with updated positions
+    // Redraw the canvas with updated positions
+    drawCanvas();
+
+    // Calculate the new center of the selected object
+    let objectCenterX, objectCenterY;
+    if (currentLaser) {
+      objectCenterX = currentLaser.x + currentLaser.width / 2;
+      objectCenterY = currentLaser.y + currentLaser.height / 2;
+    } else if (currentHat) {
+      objectCenterX = currentHat.x + currentHat.width / 2;
+      objectCenterY = currentHat.y + currentHat.height / 2;
+    }
+
+    // Convert canvas coordinates to client (screen) coordinates
+    const clientPos = canvasToClient(canvas, objectCenterX, objectCenterY);
+
+    // Update the magnifier's background to reflect the current canvas state
+    updateMagnifierBackground(clientPos.clientX, clientPos.clientY);
   }
 });
 
+// Touch End Event - Hide magnifier regardless of item type
 canvas.addEventListener("touchend", function () {
-  if (currentLaser) {
-    currentLaser.isDragging = false;
+  if (isDragging) {
+    if (currentLaser) {
+      currentLaser.isDragging = false;
+    }
+
+    if (currentHat) {
+      currentHat.isDragging = false;
+    }
+
     isDragging = false;
     currentLaser = null;
+    currentHat = null;
+
+    // Hide the magnifier when dragging ends
+    hideMagnifier();
   }
 });
 
@@ -659,7 +891,6 @@ window.addEventListener("paste", function (e) {
       const file = items[i].getAsFile();
       const reader = new FileReader();
       reader.onload = function (event) {
-        document.getElementById("h1-title").style.display = "none";
         canvasImage.onload = function () {
           originalImageWidth = canvasImage.width;
           originalImageHeight = canvasImage.height;
@@ -692,7 +923,6 @@ canvas.addEventListener("drop", function (e) {
   if (file && file.type.indexOf("image") !== -1) {
     const reader = new FileReader();
     reader.onload = function (event) {
-      document.getElementById("h1-title").style.display = "none";
       canvasImage.onload = function () {
         originalImageWidth = canvasImage.width;
         originalImageHeight = canvasImage.height;
@@ -780,11 +1010,11 @@ function drawCanvas() {
 
   // Draw lasers in two passes
   lasers.forEach(laser => {
-    drawLaser(laser, ctx);  // First pass: draw laser with hole
+    drawLaser(laser, ctx);  // First pass: draw laser
   });
   
   lasers.forEach(laser => {
-    drawLaserCenter(laser, ctx);  // Second pass: draw centers
+    drawLaserCenter(laser, ctx);  // Second pass: draw laser center
   });
 
   // Draw hats on top of everything
