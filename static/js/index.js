@@ -456,7 +456,8 @@ document.getElementById("add-laser-button").addEventListener("click", function (
     x: canvas.width / 2 - laserWidth / 2,
     y: canvas.height / 2 - laserHeight / 2,
     rotation: 0,
-    topImage: (selectedLaserType === 'radial') ? radialTopImage : laserTopImage
+    topImage: (selectedLaserType === 'radial') ? radialTopImage : laserTopImage,
+    color: selectedEyeColor // Store the current selected eye color
   };
   lasers.push(laser);
   drawCanvas();
@@ -1069,9 +1070,9 @@ function drawLaser(laser, context) {
   const offCtx = offCanvas.getContext('2d');
   offCtx.drawImage(laser.image, 0, 0, laser.width, laser.height);
 
-  if (selectedEyeColor !== 'blue') {
+  if (laser.color !== 'blue') { // Use the laser's stored color
     const imageData = offCtx.getImageData(0, 0, offCanvas.width, offCanvas.height);
-    hueShiftImageData(imageData, selectedEyeColor, laser.image === laserImageTemplate ? 'laser_large' : 'laser_radial');
+    hueShiftImageData(imageData, laser.color, laser.image === laserImageTemplate ? 'laser_large' : 'laser_radial');
     offCtx.putImageData(imageData, 0, 0);
   }
 
@@ -1092,16 +1093,15 @@ function drawLaserCenter(laser, context) {
   const offCtx = offCanvas.getContext('2d');
   offCtx.drawImage(laser.topImage, 0, 0, laser.width, laser.height);
 
-  if (selectedEyeColor !== 'blue') {
+  if (laser.color !== 'blue') { // Use the laser's stored color
     const imageData = offCtx.getImageData(0, 0, offCanvas.width, offCanvas.height);
-    hueShiftImageData(imageData, selectedEyeColor, laser.image === laserImageTemplate ? 'laser_large' : 'laser_radial');
+    hueShiftImageData(imageData, laser.color, laser.image === laserImageTemplate ? 'laser_large' : 'laser_radial');
     offCtx.putImageData(imageData, 0, 0);
   }
 
   context.drawImage(offCanvas, -laser.width / 2, -laser.height / 2, laser.width, laser.height);
   context.restore();
 }
-
 
 function hueShiftImageData(imageData, color, imageType) {
   const data = imageData.data;
