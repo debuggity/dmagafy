@@ -44,6 +44,11 @@ let lightningImage = new Image();
 lightningImage.src = "lightning.png";
 lightningImage.crossOrigin = "anonymous";
 
+let christmasBgImage = new Image();
+christmasBgImage.src = "christmas-bg.png";
+christmasBgImage.crossOrigin = "anonymous";
+
+
 let selectedBackgroundImage = americanFlagImage;  // Default to American Flag
 
 let flagOpacity = .5; // Default opacity
@@ -290,6 +295,8 @@ document.getElementById("add-background-button").addEventListener("click", funct
     selectedBackgroundImage = americanFlagImage;
   } else if (selectedOption === "lightning") {
     selectedBackgroundImage = lightningImage;
+  } else if (selectedOption === "christmasBg") { // Add new case
+    selectedBackgroundImage = christmasBgImage;
   }
 
   addFlagWithBackgroundRemoval();  // Run background removal only when button is clicked
@@ -441,11 +448,15 @@ document.getElementById("add-laser-button").addEventListener("click", function (
     ? laserRadialImage.width / laserRadialImage.height
     : laserImageTemplate.width / laserImageTemplate.height;
 
-  let laserWidth = canvas.width * 0.5; // Increased to 50% of the canvas width
+  // Get the current scale from the slider
+  const currentScale = parseFloat(document.getElementById("resize-slider").value);
+
+  // Calculate laser dimensions using the current scale
+  let laserWidth = (canvas.width * 0.5) * currentScale; // Increased to 50% of the canvas width
   let laserHeight = laserWidth / aspectRatio;
 
   if (laserHeight > canvas.height) {
-    laserHeight = canvas.height * 0.5;
+    laserHeight = (canvas.height * 0.5) * currentScale;
     laserWidth = laserHeight * aspectRatio;
   }
 
@@ -462,7 +473,6 @@ document.getElementById("add-laser-button").addEventListener("click", function (
   lasers.push(laser);
   drawCanvas();
 });
-
 
 document.getElementById("add-hat-button").addEventListener("click", function () {
   if (!selectedHatImage) return;
@@ -490,13 +500,13 @@ document.getElementById("add-hat-button").addEventListener("click", function () 
 });
 
 document.getElementById("resize-slider").addEventListener("input", function (e) {
-  const scale = Math.max(parseFloat(e.target.value), 0.5); // Keep a minimum of 0.5 to avoid negatives
+  const scale = Math.max(parseFloat(e.target.value), 0.05); // Adjusted minimum to 0.05
   lasers.forEach((laser) => {
     const aspectRatio = laser.image.width / laser.image.height;
     const centerX = laser.x + laser.width / 2;
     const centerY = laser.y + laser.height / 2;
 
-    // Increase the multiplier to allow larger lasers
+    // Resize laser with the new scale
     laser.width = (MAX_WIDTH / 5) * scale * 2;
     laser.height = laser.width / aspectRatio;
 
@@ -505,7 +515,6 @@ document.getElementById("resize-slider").addEventListener("input", function (e) 
   });
   drawCanvas();
 });
-
 
 document.getElementById("hat-resize-slider").addEventListener("input", function (e) {
   const scale = e.target.value;
@@ -554,7 +563,9 @@ document.querySelectorAll('.hat-option').forEach(option => {
       'hatLeft': "https://dmagafy.netlify.app/hat_left.png",
       'hatRight': "https://dmagafy.netlify.app/hat_right.png",
       'goth1': "https://dmagafy.netlify.app/goth-front-hat.png",
-      'gothLeft': "https://dmagafy.netlify.app/goth-side-hat.png"
+      'gothLeft': "https://dmagafy.netlify.app/goth-side-hat.png",
+      'santa': "https://dmagafy.netlify.app/santa-hat.png",
+      'dark': "https://dmagafy.netlify.app/dark-hat.png"
     };
 
     const hatType = this.getAttribute('data-hat');
@@ -1119,6 +1130,12 @@ function hueShiftImageData(imageData, color, imageType) {
       hueOffset = 174; // Adjust as needed
     } else if (imageType === 'laser_radial') {
       hueOffset = -168; // Adjust as needed
+    }
+  } else if (color === 'green') { // Add green logic
+    if (imageType === 'laser_large') {
+      hueOffset = -116; // Green for laser_large
+    } else if (imageType === 'laser_radial') {
+      hueOffset = -82; // Green for laser_radial
     }
   }
 
