@@ -199,6 +199,92 @@ function hideMagnifier() {
 }
 
 
+// ── FACE‑API MODEL LOADING ───────────────────────────────────
+async function loadFaceApiModels() {
+  // assumes your models folder is served at /models
+  // ——— Load SSD Mobilenet V1 instead of tinyFaceDetector ———
+  await faceapi.nets.ssdMobilenetv1.loadFromUri('/models');
+  //await faceapi.nets.tinyFaceDetector.loadFromUri('/models');
+  await faceapi.nets.faceLandmark68TinyNet.loadFromUri('/models');
+}
+window.addEventListener('DOMContentLoaded', loadFaceApiModels);
+
+// ── MAGIC WAND (with falling thresholds) ─────────────────────────────────
+const magicWandButton = document.getElementById("magic-wand-button");
+
+magicWandButton.addEventListener("click", async () => {
+  if (!canvasImage.src) return;
+
+  let detection = null;
+  const confidences = [0.5, 0.4, 0.3, 0.2];
+
+  for (const minConfidence of confidences) {
+    detection = await faceapi
+      .detectSingleFace(
+        canvas,
+        new faceapi.SsdMobilenetv1Options({ minConfidence })
+      )
+      .withFaceLandmarks(true);
+
+    if (detection) {
+      console.log(`Face found at confidence ${minConfidence}`);
+      break;
+    }
+  }
+
+  if (!detection) {
+    console.warn("No face detected at any threshold ≥ 0.2");
+    return;
+  }
+
+  // compute eye centers
+  const landmarks = detection.landmarks;
+  const leftEyePts  = landmarks.getLeftEye();
+  const rightEyePts = landmarks.getRightEye();
+  const avgPoint = pts => pts.reduce((a,p) => ({ x:a.x+p.x, y:a.y+p.y }), {x:0,y:0});
+  let left  = avgPoint(leftEyePts);  left.x/=leftEyePts.length;  left.y/=leftEyePts.length;
+  let right = avgPoint(rightEyePts); right.x/=rightEyePts.length; right.y/=rightEyePts.length;
+
+  // roll angle between eyes
+  const eyeAngle = Math.atan2(right.y - left.y, right.x - left.x);
+
+  // clear previous lasers
+  lasers = [];
+
+  // helper to place a laser
+  const addLaserAt = (cx, cy) => {
+    const aspectRatio = (selectedLaserType === 'radial')
+      ? (laserRadialImage.width / laserRadialImage.height)
+      : (laserImageTemplate.width / laserImageTemplate.height);
+
+    const scaleVal = parseFloat(document.getElementById("resize-slider").value);
+    let lw = (canvas.width * 0.5) * scaleVal;
+    let lh = lw / aspectRatio;
+    if (lh > canvas.height) {
+      lh = (canvas.height * 0.5) * scaleVal;
+      lw = lh * aspectRatio;
+    }
+
+    lasers.push({
+      image:       (selectedLaserType === 'radial') ? laserRadialImage : laserImageTemplate,
+      width:       lw,
+      height:      lh,
+      x:           cx - lw/2,
+      y:           cy - lh/2,
+      rotation:    eyeAngle,
+      topImage:    (selectedLaserType === 'radial') ? radialTopImage : laserTopImage,
+      color:       selectedEyeColor
+    });
+  };
+
+  // place on both eyes
+  addLaserAt(left.x,  left.y);
+  addLaserAt(right.x, right.y);
+
+  drawCanvas();
+});
+
+
 let modelLoaded = false;
 const loadingOverlay = document.getElementById("loading-overlay");
 const errorIndicator = document.getElementById("error-indicator");
@@ -401,6 +487,10 @@ document.querySelector(".upload-btn").addEventListener("click", () => {
 });
 
 document.getElementById("image-upload").addEventListener("change", function (e) {
+
+  // Clear any existing eye lasers when a new image is uploaded
+  lasers = [];
+
   const reader = new FileReader();
   reader.onload = function (event) {
       // Hide the initial load screen

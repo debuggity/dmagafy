@@ -6,6 +6,8 @@
   <title>DMAGA PFP MAKER</title>
 
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  
+  <script defer src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/ort.min.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Jockey+One&display=swap" rel="stylesheet">
 
@@ -52,6 +54,12 @@
       <i class="fa fa-download" style="margin-right: 8px;"></i> <!-- Font Awesome download icon -->
       Download
     </button>
+    <!-- Magic Wand button -->
+    <button id="magic-wand-button">
+      <i class="fa fa-magic" style="margin-right: 8px;"></i>
+      Magic Wand
+    </button>
+
   </div>
   <br>
 
@@ -100,6 +108,8 @@
             <div class="eye-color-option selected" data-color="blue">Blue</div>
             <div class="eye-color-option" data-color="red">Red</div>
             <div class="eye-color-option" data-color="gold">Gold</div>
+
+            <!-- christmas eyes-->
             <div class="eye-color-option" data-color="green">Green</div>
           </div>
         </div>        
@@ -135,8 +145,9 @@
               <img class="hat-option" src="hat_right.png" alt="Hat Right" data-hat="hatRight" />
               <img class="hat-option" src="goth-front-hat.png" alt="Goth 1" data-hat="goth1" />
               <img class="hat-option" src="goth-side-hat.png" alt="Goth Left" data-hat="gothLeft" />
-              <img class="hat-option" src="santa-hat.png" alt="Santa Hat" data-hat="santa" />
-              <img class="hat-option" src="dark-hat.png" alt="Dark Hat" data-hat="dark" />
+              <!--christmas hats-->
+              <!--img class="hat-option" src="santa-hat.png" alt="Santa Hat" data-hat="santa" />
+              <img class="hat-option" src="dark-hat.png" alt="Dark Hat" data-hat="dark" /-->
             </div>
           </div>
           
@@ -190,12 +201,14 @@
             Lightning
           </label>       
         </div>
-        <div class="background-options">
+
+        <!-- christmas background -->
+        <!--div class="background-options">
           <label>
             <input type="radio" name="background" value="christmasBg" />
             Christmas Background
           </label>
-        </div>
+        </div-->
 
         <div class="control">
           <span>Adjust Background Opacity</span>
