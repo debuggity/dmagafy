@@ -216,7 +216,7 @@ magicWandButton.addEventListener("click", async () => {
   if (!canvasImage.src) return;
 
   let detection = null;
-  const confidences = [0.5, 0.4, 0.3, 0.2];
+  const confidences = [0.5, 0.4, 0.3, 0.2, 0.15, 0.1];
 
   for (const minConfidence of confidences) {
     detection = await faceapi
